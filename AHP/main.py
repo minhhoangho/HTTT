@@ -14,19 +14,19 @@ def comparision_matrix(arr):
 def geometrix_mean(arr):
     temp = np.copy(arr)
     for j in range(arr.shape[1]):
-        arr[:, j] /= sum(temp[:, j])
+        arr[:, j] /= sum(temp[:, j]) # từng phần tử chia sum từng cột
     return arr
 
 def AHP(arr):
     n = np.shape(arr)[0]
     arr = comparision_matrix(arr)
-    geometrix = geometrix_mean(np.copy(arr))
-    row_avgs = np.mean(geometrix, axis=1)
-    weighted_sum = np.sum(row_avgs * arr, axis=1)
-    consistency = weighted_sum / row_avgs
-    lamb = np.mean(consistency)
-    CI = (lamb - n) / (n - 1)
-    CR = CI / RI[n - 1]
+    geometrix = geometrix_mean(np.copy(arr)) # matrix table 4
+    row_avgs = np.mean(geometrix, axis=1) # trung bình từng hàng (matrix table 5)
+    weighted_sum = np.sum(row_avgs * arr, axis=1) # sum của element wise multiple
+    consistency = weighted_sum / row_avgs # chia từng phần tử
+    lamb = np.mean(consistency) # lambda = trung bình cộng consistency
+    CI = (lamb - n) / (n - 1) # Chỉ số nhất quán
+    CR = CI / RI[n - 1] # Chỉ số thích hợp CR (điều kiện CR < 10% thì OK)
     return CR
 
 if __name__ == "__main__":
