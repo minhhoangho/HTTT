@@ -56,7 +56,7 @@ person_4 = np.array(
     [float('nan'), float('nan'), float('nan'), 5],
     [float('nan'), float('nan'), float('nan'), float('nan')]
 ])
-person_5 = np.array(Í
+person_5 = np.array(
 [
     [float('nan'), 8, 2, 7],
     [float('nan'), float('nan'), 1/4, 1/4],
@@ -147,16 +147,39 @@ def fuzzification1(matrices):
   input:   list of n x n matrices
   output: 3 x n x n matrix
 """
-def fuzzification2(matrics):
-  matrices = np.array(matrices)
+def fuzzification2(matrices):
+  M = np.array(matrices).copy()
   n = len(matrices)
   if n == 0:
     print("No matrices provided, exit")
     return
+  s = (M.shape)
+  L = np.maximum(M-2, np.full(s, 1))
+  U = np.minimum(M+2, np.full(s, 9))
+  # print("@@@@@@")
+  # print(M.shape)
+  # print("----")
+  # print(L)
+  # print("----")
+  # print(M)
+  # print("----")
+  # print(U)
+  # print("@@@@")
+  return np.stack((L, M, U), axis=3)
+
+def defuzzification(fuzzy_matrix, alpha = 0.5, beta = 0.5):
+  alpha_l = fuzzy_matrix[:,:,0] + alpha*(fuzzy_matrix[:,:,1] - fuzzy_matrix[:,:,0])
+  alpha_r = fuzzy_matrix[:,:,2] - alpha*(fuzzy_matrix[:,:,2] - fuzzy_matrix[:,:,1])
+  alpha_matrix = np.dstack((alpha_l, alpha_r))
+
+  alpha_beta_matrix = np.add(np.multiply(alpha_matrix[:,:,0],beta),np.multiply(alpha_matrix[:,:,1],(1-beta)))
+  
+  return alpha_beta_matrix
+
 
 
 def myFuzzyAHP(list_comparision, list_eval):
-  if len(list_comparision) == 0 or len(list_eval):
+  if len(list_comparision) == 0 or len(list_eval) == 0:
     return
   list_comparision_matrix = []
   list_eval_matrix = []
@@ -165,85 +188,70 @@ def myFuzzyAHP(list_comparision, list_eval):
   for matrix in list_comparision:
     list_comparision_matrix.append(comparision_matrix(matrix))
 
-
+  # print("comparision_matrix")
+  # print(list_comparision_matrix)
   fuzzied_matrix = fuzzification1(list_comparision_matrix)
-  print("fuzzied_matrix")
-  print(fuzzied_matrix)
+  # print("fuzzied_matrix")
+  # print(fuzzied_matrix)
   criteria_weight_fuzzy_vector = calculate_weight(fuzzied_matrix)
   print("criteria_weight_fuzzy_vector")
-  print(criteria_weight_fuzzy_vector)
-  # print(L_matrix)
-  # print(U_matrix)
-  # print(M_matrix)
+  print(criteria_weight_fuzzy_vector) # done buoc 1
+  print(criteria_weight_fuzzy_vector.shape) # done buoc 1
 
 
-def fuzzy_AHP(AHP_matrix):
-	#print(triangular_membership_function)
-	test_data = np.array(AHP_matrix).copy()
-	n = len(test_data)
-	fuzzified_test_data = numpy.zeros((n,n,3))
+  fuzzied_matrix2 = fuzzification2(list_eval)
+  print("fuzzied_matrix2")
+  # print(fuzzied_matrix2)
+  print(fuzzied_matrix2.shape)
+  G_L = np.min(fuzzied_matrix2[:,:,:,0], axis=0)
+  G_M = np.average(fuzzied_matrix2[:,:,:,1], axis=0)
+  G_U = np.max(fuzzied_matrix2[:,:,:,2], axis=0)
+  G_matrix = np.stack((G_L, G_M, G_U), axis=2)
+  # print(G_matrix) # G fuzzy matrix
+  print("G_matrix")
+  print(G_matrix.shape)
 
-	for x in range(n):
-		for y in range(n):
-			if(test_data[x][y] >= 1):
-				fuzzified_test_data[x][y] = triangular_membership_function[test_data[x][y]]
-			else:
-				index = round(1/test_data[x][y])
-				#print(index)
-				temp = triangular_membership_function[index]
-				for i in range(3):
-					fuzzified_test_data[x][y][i] = 1.0/temp[2-i]
-	#print(fuzzified_test_data)
+  A_matrix = np.empty(G_matrix.shape)
+  for j in range(0, len(A_matrix[0])):
+      sum_column_normalize = np.sqrt(np.sum(G_matrix[:,j]**2, axis=0))
+      for i in range(0, len(A_matrix)):
+          A_matrix[i][j] = G_matrix[i][j]/sum_column_normalize
 
-	fuzzy_geometric_mean = [[1 for x in range(3)] for y in range(n)]
-	#print(fuzzy_geometric_mean)
+  print("A_matrix")
+  # print(A_matrix)
+  print(A_matrix.shape)
 
-	for i in range(n):
-		for j in range(3):
-			for k in range(n):
-				fuzzy_geometric_mean[i][j] *= fuzzified_test_data[i][k][j]
-			fuzzy_geometric_mean[i][j] = fuzzy_geometric_mean[i][j]**(1/float(n))
-	#print(fuzzy_geometric_mean)
+  # Tong hop H = A x W (multiple wise)
+  H = np.multiply(A_matrix,criteria_weight_fuzzy_vector)
+  print("H")
+  # print(H)
+  print(H.shape)
 
-	sum_fuzzy_gm = [0 for x in range(3)]
-	inv_sum_fuzzy_gm = [0 for x in range(3)]
+  defuzzied_matrix = defuzzification(H)
+  print("defuzzied_matrix")
+  print(defuzzied_matrix)
 
-	for i in range(3):
-		for j in range(n):
-			sum_fuzzy_gm[i] += fuzzy_geometric_mean[j][i]
-
-	for i in range(3):
-		inv_sum_fuzzy_gm[i] = (1.0/sum_fuzzy_gm[2-i])
-	#print(sum_fuzzy_gm)
-
-	fuzzy_weights = [[1 for x in range(3)] for y in range(n)]
-
-	for i in range(n):
-		for j in range(3):
-			fuzzy_weights[i][j] = fuzzy_geometric_mean[i][j]*inv_sum_fuzzy_gm[j]
-	#print(fuzzy_weights)
-
-	weights = [0 for i in range(n)]
-	normalized_weights = [0 for i in range(n)]
-	sum_weights = 0
-
-	for i in range(n):
-		for j in range(3):
-			weights[i] += fuzzy_weights[i][j]
-		weights[i] /= 3
-		sum_weights += weights[i]
-	#print(weights)
-	#print(sum_weights)
-
-	for i in range(n):
-		normalized_weights[i] = (1.0*weights[i])/(1.0*sum_weights)
-	#print(normalized_weights)
-
-	return normalized_weights
+  h_max = np.max(defuzzied_matrix, axis=0) # max tung cot
+  h_min = np.min(defuzzied_matrix, axis=0) # min tung cot
+  h_beta1 = defuzzied_matrix.copy()
+  h_beta2 = defuzzied_matrix.copy()
+  for i in range(0, defuzzied_matrix.shape[0]): # lap tung options
+      h_beta1[i] = h_beta1[i] - h_max
+      h_beta2[i] = h_beta2[i] - h_min
+  S_max = np.sqrt(np.sum(h_beta1**2, axis=1))
+  S_min = np.sqrt(np.sum(h_beta2**2, axis=1))
+  print("log s_max, s_min")
+  S = np.concatenate((S_max.reshape((len(S_max), 1)), S_min.reshape((len(S_max), 1))), axis=1)
+  print(S)
+  # PA xep hang
+  R = S[:,1]/(S[:,1]+S[:,0])
+  print(R)
+  
 
 
 
 
 list_comparision = [person_1, person_2, person_3, person_4, person_5]
 list_eval = [person_1_op, person_2_op, person_3_op, person_4_op, person_5_op]
+
 myFuzzyAHP(list_comparision, list_eval)
